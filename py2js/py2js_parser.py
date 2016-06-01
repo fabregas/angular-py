@@ -25,11 +25,11 @@ class Py2JsParser(NodeVisitor):
     def _get_operator(self, left, right, op):
         opname = ""
         if isinstance(op, Add):
-            opname = '+'
+            return "__fab__add_op({},{})".format(left, right)
         elif isinstance(op, Sub):
             opname = '-'
         elif isinstance(op, Mult):
-            opname = '*'
+            return "__fab__mul_op({},{})".format(left, right)
         elif isinstance(op, Div):
             opname = '/'
         elif isinstance(op, Mod):
@@ -47,6 +47,10 @@ class Py2JsParser(NodeVisitor):
         # Invert | Not | UAdd | USub
         if isinstance(op, Not):
             return "!"
+        elif isinstance(op, USub):
+            return "-"
+        elif isinstance(op, UAdd):
+            return "+"
         else:
             raise RuntimeError("Unknown unary operator: {}".format(op))
 
@@ -73,19 +77,25 @@ class Py2JsParser(NodeVisitor):
             return "__fab__gte"
         # Is | IsNot | In | NotIn
 
-    def _get_slice(self, sl):
+    def _get_slice(self, target, sl):
         if isinstance(sl, Slice):
             if sl.step is not None:
                 raise RuntimeError("slice step is not supported!")
-            ret = '.slice({}'.format(self._get_value(sl.lower) or 0)
+            if sl.lower is None:
+                low = 0
+            else:
+                low = self._get_value(sl.lower)
+            ret = '__fab__slice({}, {}'.format(target, low)
             if sl.upper is not None:
                 ret += ', {})'.format(self._get_value(sl.upper))
             else:
                 ret += ')'
+            return ret
         elif isinstance(sl, ExtSlice):
             raise Exception('not implemented ExtSlice at {}'.format(sl.lineno))
         elif isinstance(sl, Index):
-            return '[{}]'.format(self._get_value(sl.value))
+            return '__fab__idx({}, {})'.format(
+                target, self._get_value(sl.value))
 
     def _get_value(self, val):
         if isinstance(val, Str):
@@ -113,7 +123,8 @@ class Py2JsParser(NodeVisitor):
         elif isinstance(val, Dict):
             return "{" + ",".join(["{}: {}".format(k,v) for (k,v) in zip(val.keys, val.values)]) + "}"
         elif isinstance(val, Tuple) or isinstance(val, List):
-            return '[%s]'% ', '.join([self._get_value(v) for v in val.elts])
+            return 'PyList([{}])'.format(
+                ', '.join([self._get_value(v) for v in val.elts]))
         elif isinstance(val, BinOp):
             return self._get_operator(
                 self._get_value(val.left), self._get_value(val.right), val.op)
@@ -132,8 +143,7 @@ class Py2JsParser(NodeVisitor):
                 self._get_value(val.left),
                 self._get_value(val.comparators[0]))
         elif isinstance(val, Subscript):
-            return "{}{}".format(
-                self._get_value(val.value), self._get_slice(val.slice))
+            return self._get_slice(self._get_value(val.value), val.slice)
         elif isinstance(val, Call):
             func = self._get_value(val.func)
             if val.keywords:
@@ -194,6 +204,8 @@ class Py2JsParser(NodeVisitor):
             for target in item.targets:
                 if isinstance(target, Tuple) or isinstance(target, List):
                     t_val = '__unpack__'
+                elif isinstance(target, Subscript):
+                    raise RuntimeError("Subscript assign unsupported now")
                 else:
                     t_val = self._get_value(target)
 

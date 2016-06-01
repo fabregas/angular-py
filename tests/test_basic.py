@@ -34,4 +34,52 @@ def test():
 
     print("hello, world =)")
 
+    s = "test" * 3
+    assert s == "testtesttest"
+    ss = "new"
+    res = 4*ss+"NEW"
+    cnt = res.count("new")
+    assert cnt == 4
+    assert res == "newnewnewnewNEW"
+
+    s = "Python"
+    assert s[0] == 'P'
+    assert s[-1] == 'n'
+    assert s[-2] == 'o'
+    assert s[6-12] == 'P'
+    assert s[0:2] == 'Py'
+    assert s[2:5] == 'tho'
+    assert s[:2] + s[2:] == 'Python'
+    assert s[:4] + s[4:] == 'Python'
+    assert s[-2:] == 'on'
+    assert s[4:42] == 'on'
+    assert s[42:] == ''
+    assert 'J' + s[1:] == 'Jython'
+
+    s = 'supercalifragilisticexpialidocious'
+    assert len(s) == 34
+
+    #lists
+    squares = [1, 4, 9, 16, 25]
+    assert squares[0] == 1
+    assert squares[-1] == 25
+    assert squares[1:3] == [4, 9]
+    assert squares[-3:] == [9, 16, 25]
+    assert squares[:] == [1, 4, 9, 16, 25]
+    assert squares + [36, 49, 64, 81] == [1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+    cubes = [1, 8, 27, 65, 125]
+    #######FIXME
+    #######cubes[3] = 64
+    #######assert cubes == [1, 8, 27, 64, 125]
+    cubes.append(33)
+    assert cubes == [1, 8, 27, 65, 125, 33]
+    assert len(cubes) == 6
+
+    a = ['a', 'b', 'c']
+    n = [1, 2, 3]
+    x = [a, n]
+    assert x == [['a', 'b', 'c'], [1, 2, 3]]
+    assert x[0][1] == 'b'
+
 test()
