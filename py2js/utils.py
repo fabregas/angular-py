@@ -27,7 +27,7 @@ def get_stdlib():
             with open(fpath) as fd:
                 stdlib += translate(fd.read())
         else:
-            raise RuntimeError('unknown file {}'.format(fpath))
+            print('WARNING: unknown file {}'.format(fpath))
     return stdlib
 
 

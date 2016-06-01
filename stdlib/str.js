@@ -9,6 +9,3 @@ function PyStr(val) {
 	}
 }
 
-function str(val) {
-	return val.toString()
-}

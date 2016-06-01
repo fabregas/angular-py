@@ -12,6 +12,7 @@ STDLIB_JS = get_stdlib()
 def translate_file(pypath):
     translated = translate(open(pypath).read())
     js_path = os.path.join(CACHE_DIR, os.path.basename(pypath))
+    js_path += '.js'
     with open(js_path, 'w') as fd:
         fd.write(STDLIB_JS)
         fd.write("\n// ========== END OF STDLIB ===========\n")
@@ -23,17 +24,17 @@ for fname in os.listdir(TESTS_DIR):
     fpath = os.path.join(TESTS_DIR, fname)
     if not os.path.isfile(fpath):
         continue
-    print("* processing {}".format(fname))
+    print("*** processing {}".format(fname))
 
     ret = os.system("python3 {}".format(fpath))
     if ret:
         raise RuntimeError("PY FAILED")
-    print("PY - ok ;)")
+    print(" * PY - ok ;)")
     js_path = translate_file(fpath)
 
     ret = os.system("node {}".format(js_path))
     if ret:
         raise RuntimeError("JS FAILED")
-    print("JS - ok ;)")
+    print(" * JS - ok ;)")
 
 

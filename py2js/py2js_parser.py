@@ -22,19 +22,26 @@ class Py2JsParser(NodeVisitor):
     def __init__(self):
         self.out = JsOut()
 
-    def _get_operator(self, op):
+    def _get_operator(self, left, right, op):
+        opname = ""
         if isinstance(op, Add):
-            return '+'
+            opname = '+'
         elif isinstance(op, Sub):
-            return '-'
+            opname = '-'
         elif isinstance(op, Mult):
-            return '*'
+            opname = '*'
         elif isinstance(op, Div):
-            return '/'
+            opname = '/'
         elif isinstance(op, Mod):
-            return '%'
+            opname = '%'
+        elif isinstance(op, FloorDiv):
+            return "Math.floor({}/{})".format(left, right)
+        elif isinstance(op, Pow):
+            return "Math.pow({}, {})".format(left, right)
         else:
             raise RuntimeError("Unknown operator: {}".format(op))
+        # basic operator case
+        return "({} {} {})".format(left, opname, right)
 
     def _get_unary_operator(self, op):
         # Invert | Not | UAdd | USub
@@ -53,17 +60,17 @@ class Py2JsParser(NodeVisitor):
 
     def _get_comparator(self, cm):
         if isinstance(cm, Eq):
-            return "=="
+            return "__fab__eq"
         elif isinstance(cm, NotEq):
-            return "!="
+            return "__fab__neq"
         elif isinstance(cm, Lt):
-            return "<"
+            return "__fab__lt"
         elif isinstance(cm, LtE):
-            return "<="
+            return "__fab__lte"
         elif isinstance(cm, Gt):
-            return ">"
+            return "__fab__gt"
         elif isinstance(cm, GtE):
-            return ">="
+            return "__fab__gte"
         # Is | IsNot | In | NotIn
 
     def _get_slice(self, sl):
@@ -82,7 +89,7 @@ class Py2JsParser(NodeVisitor):
 
     def _get_value(self, val):
         if isinstance(val, Str):
-            return 'PyStr("%s")'%val.s
+            return 'PyStr("%s")'%self._esc_js_str(val.s)
         elif isinstance(val, Bytes):
             return 'PyStr("%s")'%val.s.decode()
         elif isinstance(val, NameConstant):
@@ -108,9 +115,8 @@ class Py2JsParser(NodeVisitor):
         elif isinstance(val, Tuple) or isinstance(val, List):
             return '[%s]'% ', '.join([self._get_value(v) for v in val.elts])
         elif isinstance(val, BinOp):
-            op = self._get_operator(val.op)
-            return "({} {} {})".format(
-                self._get_value(val.left), op, self._get_value(val.right))
+            return self._get_operator(
+                self._get_value(val.left), self._get_value(val.right), val.op)
         elif isinstance(val, UnaryOp):
             op = self._get_unary_operator(val.op)
             return "({} {})".format(op, self._get_value(val.operand))
@@ -121,12 +127,10 @@ class Py2JsParser(NodeVisitor):
         elif isinstance(val, Compare):
             if len(val.ops) > 1:
                 raise RuntimeError('multiple comparation is not supported now')
-            op_c = zip([self._get_comparator(o) for o in val.ops],
-                       [self._get_value(c) for c in val.comparators])
-
-            return "{} {}".format(
+            return "{}({}, {})".format(
+                self._get_comparator(val.ops[0]),
                 self._get_value(val.left),
-                ' '.join(["{} {}".format(o,v) for (o,v) in op_c]))
+                self._get_value(val.comparators[0]))
         elif isinstance(val, Subscript):
             return "{}{}".format(
                 self._get_value(val.value), self._get_slice(val.slice))
@@ -249,12 +253,15 @@ class Py2JsParser(NodeVisitor):
         elif isinstance(item, Assert):
             cond = self._get_value(item.test)
             if not item.msg:
-                msg = '"Invalid condition ({})"'.format(cond)
+                msg = '"Invalid condition ({})"'.format(self._esc_js_str(cond))
             else:
                 msg = self._get_value(item.msg)
             self.out.add("if (!({})) throw {}".format(cond, msg))
         else:
             raise RuntimeError('unknown body line: {}'.format(item))
+
+    def _esc_js_str(self, s):
+        return s.replace('"', '\\"')
 
     def _parse_func(self, func, method_prefix=''):
         #'name', 'args', 'body', 'decorator_list', 'returns'
